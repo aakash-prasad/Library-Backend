@@ -8,6 +8,8 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 //Router
 app.use('/',require('./routes/index'))
+app.use('/customer',require('./routes/customers'))
+app.use('/book', require('./routes/books'))
 //server running
 
 app.listen(5000, ()=>{
