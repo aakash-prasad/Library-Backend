@@ -5,7 +5,7 @@ const connectDb = async ()=>{
     host: 'localhost',
     user: 'root',
     password:'Aakash@123',
-    database: 'library'
+    database: 'newLibrary'
   });
 }
 module.exports  = {

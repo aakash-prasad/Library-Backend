@@ -1,99 +1,99 @@
 const express = require('express');
 const router = express.Router();
-const mysqlconnection = require('../connection');
 const {conn} = require('../connection')
 
 
-
-router.post('/new-book/',async(req, res)=>{
-  const mysqlconnection = await conn();
-  let {name, author,rate, quantity} = req.body;
-
-  const sqlCheck = "SELECT * FROM `books` WHERE `name` = ?";
-  const sqlUpdate = "UPDATE books SET quantity = ? WHERE name = ?"
-  
+router.post('/author', async(req,res)=>{
+  const mySqlConnection = await conn();
+  const{authorName} =req.body;  
   try{
-    const checkResult = await mysqlconnection.execute(sqlCheck,[name]);
-    if(checkResult[0].length==0){
-      const newBook = [name, author, rate, quantity];
-      const updateResult = await mysqlconnection.execute('INSERT INTO books (name, author,rate, quantity) VALUES (?,?,?,?)' ,newBook)
-      console.log(`Book ${name} inserted`)      
+    const checkAuthorQuery = 'Select * FROM authors WHERE name = ?'
+    const checkAuthorResult = await mySqlConnection.execute(checkAuthorQuery, [authorName])
+    if(checkAuthorResult[0].length == 0){
+      const insertAuthorQuery = 'INSERT INTO authors (name) VALUES(?)';
+      const insertAuthorResult = await mySqlConnection.execute(insertAuthorQuery, [authorName]);
+      return res.json({authorName})
     }
-    const updateResult = await mysqlconnection.execute(sqlUpdate, [quantity, name])
-    console.log('quantity updated')
-  }catch(err){console.log(err)}
-    
-    console.log('Done')
-  return res.status(200).json({msg: newBook})
+    return res.json({msg: 'Author already exist'})
+  }catch(err){console.log(`Error in inserting author ${err}`)}
 })
 
+router.post('/', async(req,res)=>{
+  const mySqlConnection = await conn();
 
-
-router.post('/issue-book', async(req, res)=>{
-  const mysqlconnection = await conn();
-  const {customerName, bookName, duration} = req.body;
-  //if customer issued a book push into database
-  const issueData = [customerName, bookName, new Date(), false, duration];
-    
-  const sql = 'INSERT INTO bookissue(customer_name, book_name, issue_date, returned, duration) VALUES (?,?,?,?,?)'
-  const checkSql = 'SELECT * FROM books WHERE name = ?'
-  const checkResult = await mysqlconnection.execute(checkSql, [bookName])
-  //console.log(checkResult[0][0].quantity)
-  if(checkResult[0].length == 0){
-    console.log(`Sorry the book ${bookName} is not available`)
-    return res.json(`Book issue for ${customerName} unsuccesful`)
-  }
-  if(checkResult[0][0].quantity == 0){
-    console.log(`Sorry the book ${bookName} doesn't have enough quantity`)
-    return res.json(`Book issue for ${customerName} unsuccesful. 0 book left`)
-  }
+  const{bookName, authorName, quantity, rate} = req.body;
   try{
-    const insertResult = await mysqlconnection.execute(sql, issueData)
-    const getqtySql = 'SELECT quantity FROM books WHERE name = ?'
-    const qtyResult = await mysqlconnection.execute(getqtySql, [bookName]) 
-    const  qty = (qtyResult[0][0].quantity);
-    const updateSql = 'UPDATE books SET quantity = ?'
-    const updateResult = await mysqlconnection.execute(updateSql, [qty-1])
-    console.log(`Book issue for ${customerName} succesful`);
-  }catch(err){console.log(err)} 
-  return res.status(200).json({msg: issueData})
+      //Fetch the author id
+    const getAuthorQuery = 'SELECT id FROM authors WHERE name = ?';
+    const getAuthorResult = await mySqlConnection.execute(getAuthorQuery, [authorName])
+    const authorId = (getAuthorResult[0][0].id)
+
+    // check if the book exist or not
+    const checkBookQuery = 'SELECT name FROM books where name = ?';
+    const checkBookResult = await mySqlConnection.execute(checkBookQuery, [bookName])
+    if(checkBookResult[0].length == 0){
+    //insert new book
+      const newBook = [bookName, authorId, quantity, rate]
+      const insertBookQuery = 'INSERT INTO books(name, authorId, quantity, rate) VALUES(?,?,?,?)';
+      const insertBookResult = await mySqlConnection.execute(insertBookQuery, newBook);
+      return res.json({newBook})
+    }
+    return res.json({msg:'Book already exist'})
+  }catch(err){console.log(`Error in inserting new book: ${err}`)}
+  
 })
 
 
-  
-router.post('/collect-book', async(req, res)=>{
-  const mysqlconnection = await conn();
-  const {customerName, bookName}= req.body;
-  checkSql = 'SELECT issue_date FROM bookissue WHERE customer_name = ?'
+router.post('/issue', async(req, res)=>{
+  const mySqlConnection = await conn();
+  const {userName, bookName} = req.body;
   try{
-    const resultss = await mysqlconnection.execute(checkSql, [customerName])
-    console.log(resultss[0][0].issue_date);
-    const issueDate= resultss[0][0].issue_date;
-    console.log(issueDate)
-    const currentDate = new Date();
-    const duration = (currentDate.getTime() - issueDate.getTime())/(1000 * 3600 * 24);
-    const rateSql = 'SELECT rate FROM books WHERE name = ?'
-    const ResultRateSql = await mysqlconnection.execute(rateSql, [bookName]);
-    const rate = ResultRateSql[0][0].rate;
-    const toBePaid = rate/10;
-    const fees = toBePaid*duration;
-    
-    let collectionData = [
-      customerName,
-      bookName,
-      issueDate,
-      fees,
-      true,
-    ]
-    const insertSql = 'INSERT INTO collection_book(customer_name, book_name, issue_date, fees, returned) VALUES (?,?,?,?,?) '
-    const result = await mysqlconnection.execute(insertSql, collectionData);
-      console.log('You have returned the book sucesfully');
-  }catch(err){console.log(err)}
-        
-    
+    // Search for the customer and get the id
+  const getCustomerQuery = 'SELECT id FROM customers WHERE username = ?';
+  const getCustomerResult = await mySqlConnection.execute(getCustomerQuery, [userName]);
+  const customerId = (getCustomerResult[0][0].id)
+  //Search for the book and get the id
+  const getBookQuery = 'SELECT id FROM books WHERE name = ?';
+  const getBookResult = await mySqlConnection.execute(getBookQuery, [bookName]);
+  const bookId = (getBookResult[0][0].id)
+  //If id found insert it into the database
+  if(getCustomerResult[0].length == 0){
+    return res.json({msg: `Customer does not exist`})
+  }
+  else if(getBookResult[0].length == 0){
+    return res.json({msg: `Book does not exist`})
+  }
+  else if(getCustomerResult[0].length != 0 && getBookResult[0].length != 0){
+    //id found issue the book for customer
+    const issueData = [customerId, bookId, new Date()]
+    const insertIssueQuery = 'INSERT INTO issue_book(customer_id, book_id, issue_date) VALUES(?,?,?)';
+    const insertIssueResult = await mySqlConnection.execute(insertIssueQuery, issueData);
+    return res.json({msg: 'Issue success'})
+  }
+  }catch(err){console.log(`Error in issue book : ${err}`)}
   
-  return res.status(200).json({msg: collectionData})
 })
 
+
+router.post('/collect', async(req, res)=>{
+  const mySqlConnection = await conn();
+  const{userName, bookName} = req.body;
+  try{
+    //SEARCH FOR THE USERNAME AND GET THE ID
+    const getCustomerQuery = 'SELECT id FROM customers WHERE username = ?';
+    const getCustomerResult = await mySqlConnection.execute(getCustomerQuery, [userName]);
+    const customerId = (getCustomerResult[0][0].id);
+
+    //SEARCH FOR THE BOOK AND GET THE BOOK
+    const getBookQuery = 'SELECT id FROM books WHERE name = ?';
+    const getBookResult = await mySqlConnection.execute(getBookQuery, [bookName]);
+    const bookId = (getBookResult[0][0].id);
+
+    //UPDATE TABLE ISSUE_BOOK WHERE USERID = ? AND BOOKID =?
+    const updateIssueQuery = 'UPDATE issue_book SET is_returned = true , returned_date = ? WHERE customer_id = ? AND book_id = ?';
+    const updateIssueResult = await mySqlConnection.execute(updateIssueQuery, [new Date(), customerId, bookId])
+    return res.json({Success: [userName, bookName ]})
+  }catch(err){console.log(`Error in getting customer ${err}`)}
+})
 
 module.exports = router;

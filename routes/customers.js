@@ -3,60 +3,33 @@ const router = express.Router();
 const {conn} = require('../connection');
 
 
-
-
-router.post('/new-customer', async(req, res)=>{
-  const mysqlconnection = await conn();
-  const {fullName, phoneNo}= req.body;
-  const time = new Date();
-    let customer = [fullName, time, phoneNo];
-    try{
-      const insertSql = "INSERT INTO customers (full_name, created_at, phoneNo) Values(?,?,?)"
-      const result = await mysqlconnection.execute(insertSql, customer)
-      console.log('Customer Number: ');
-    }catch(err){console.log(`The error in creating customer is ${err}`)}
-
-   console.log(`New Customer Created`);
-   return res.status(200).json({msg: customer})
-})
-
-
-
-router.post('/collect-fees', async(req, res)=>{
-  const mysqlconnection = await conn();
-  const {customerName, status} = req.body;
-  if(status == true){
-    const updateSql = 'UPDATE collection_book SET paid = true WHERE customer_name = ?';
-    try{
-      const result = await mysqlconnection.execute(updateSql, [customerName]);      
-        console.log('Success updating main table')
-    }catch(err){console.log(err)}     
-      console.log('Paid')
-      return res.status(200).json({msg: `Fees paid ${customerName}`})
+router.post('/', async(req,res)=>{
+  const mySqlConnection = await conn();
+  
+  const{userName, phoneNo, gender} =req.body;
+  let customerDetails = [userName, phoneNo, gender];
+  //Check length of phoneNo:
+  if(phoneNo.length !=10){
+    return res.json({msg: 'Enter a valid Phone Number'})
   }
-  console.log('Not Paid')
-  return res.status(424).json({msg: `Fees payment Unsuccesful ${customerName}`})     
+  try{
+  //check weather the userName exist or not:
+  const checkUserQuery = 'SELECT username FROM customers WHERE username = ?';
+  const checkUserResult = await mySqlConnection.execute(checkUserQuery, [userName]);
+  
+  // If userName doesn't exist insert new customer:
+  if(checkUserResult[0].length==0){
+      const insertQuery = 'INSERT INTO customers(username, phone, gender) VALUES(?,?,?)';
+      const insertResult = await mySqlConnection.execute(insertQuery, customerDetails)
+  }
+  else{
+    console.log('User Already exist')
+    return res.json({msg: 'User Already Exist'})
+  }  
+  }catch(err){console.log(`Error in Creating a new customer: ${err}`)}
+  
+  return res.json({customerDetails});
 })
 
-
-
-router.post('/all-customers', async(req,res)=>{
-  const returnedList = [];
-  const mysqlconnection = await conn();
-  const getCustomerSql = 'SELECT full_name FROM customers'
-  const getCustomerResult  = await mysqlconnection.execute(getCustomerSql)
-  const getBookSql = 'SELECT book_name FROM bookissue';
-  const getBookResult = await mysqlconnection.execute(getBookSql)
-  const customerArray = (getCustomerResult[0]);
-  customerArray.forEach((item, index)=>{
-    const nthCustomer = {
-      "name": customerArray[index].full_name
-    }
-    returnedList.push(nthCustomer)
-  });
-
-  console.log(returnedList)
-  res.status(200).json({msg: returnedList}); 
-})
 
 module.exports = router;
