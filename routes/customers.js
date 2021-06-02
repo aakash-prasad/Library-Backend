@@ -31,5 +31,28 @@ router.post('/', async(req,res)=>{
   return res.json({customerDetails});
 })
 
+router.get('/', async(req, res)=>{
+  const mySqlConnection = await  conn();
+  const userName  = (req.query.username)
+  try{
+  //SEARACH FOR THE USER WITH THE USERNAME IN THE DATABASE
+  const getUserQuery = 'SELECT * FROM customers WHERE username = ?';
+  const getUserResult = await mySqlConnection.execute(getUserQuery, [userName])
+  const userData = (getUserResult[0][0])
 
+  //Search for the book issued by the customer and push it into the userData object
+  const customerId  = getUserResult[0][0].id;
+  const getBookIdQuery = 'SELECT book_id FROM issue_book WHERE customer_id = ?';
+  const getBookIdResult = await mySqlConnection.execute(getBookIdQuery, [customerId])
+  const bookId = (getBookIdResult[0][0].book_id);
+  const getBookQuery = 'SELECT name FROM books WHERE id = ?';
+  const getBookResult = await mySqlConnection.execute(getBookQuery, [bookId]);
+  const bookName = (getBookResult[0][0].name)
+  userData.bookName = bookName;
+  
+  //IF USER FOUND RESPOND WITH THE USER DETAILS
+  res.json({Customer :userData})
+  }catch(err){console.log(`Error in getting the user ${err}`)}
+
+})
 module.exports = router;
