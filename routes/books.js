@@ -21,7 +21,9 @@ router.post('/author', async(req,res)=>{
 router.post('/', async(req,res)=>{
   const mySqlConnection = await conn();
 
-  const{bookName, authorName, quantity, rate} = req.body;
+  const{bookname, authorName, quantity, rate} = req.body;
+  const bookName = bookname.trim();
+  console.log(bookName)
   try{
     //Fetch the author id
     const getAuthorQuery = 'SELECT id FROM authors WHERE name = ?';
@@ -31,6 +33,7 @@ router.post('/', async(req,res)=>{
     // check if the book exist or not
     const checkBookQuery = 'SELECT name FROM books where name = ?';
     const checkBookResult = await mySqlConnection.execute(checkBookQuery, [bookName])
+    
     if(checkBookResult[0].length == 0){
     //insert new book
       const newBook = [bookName, authorId, quantity, rate]
