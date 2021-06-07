@@ -6,12 +6,15 @@ router.get('/', async(req,res)=>{
   // START THE CONNECTION
   const mySqlConnection = await conn();
   // QUERY TO GET CUSTOMER
-  const getCustomerQuery = 'SELECT * FROM customers';
-  const getCustomerResult = await mySqlConnection.execute(getCustomerQuery);
-  let customerArray = getCustomerResult[0]
-  console.log(customerArray)
-  //RETURN THE ARRAY
-  return res.status(200).json({data: customerArray})  
+  try{
+    const getCustomerQuery = 'SELECT * FROM customers';
+    const getCustomerResult = await mySqlConnection.execute(getCustomerQuery);
+    let customerArray = getCustomerResult[0]
+    console.log(customerArray)
+    //RETURN THE ARRAY
+    return res.status(200).json({data: customerArray})  
+  }catch(err){return res.status(500).json(err)}
+  
 });
 
 
